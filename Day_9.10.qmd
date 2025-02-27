@@ -1,0 +1,69 @@
+---
+project: 
+  title: "Day-08"
+  output-dir: docs
+  
+format: 
+  html: 
+    self-contained: true
+---
+
+```{r}
+data("airquality")
+
+?airquality
+```
+
+```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
+install.packages("visdat")
+library(visdat)
+
+vis_dat(airquality)
+vis_miss(airquality)
+```
+
+
+```{r}
+clean_airquality <- na.omit(airquality)
+
+model <- lm(Ozone ~ Solar.R, data = clean_airquality)
+
+#I chose this variable because it seemed like the most interesting predictor and solar radiation and ozone levels are directly proportional to one another, as one increases, so does the other, so it made the most sense to me.
+
+summary(model)
+
+#This seems like this model is valid but it is not terribly good at accurately predicting Ozone values without additional predictors involved.
+```
+
+```{r}
+#5
+
+#The R-squared value 0.1213 indicates that about 12.13% of Ozone level variability is predictable based on Solar R.
+```
+
+
+```{r}
+install.packages("broom")
+library(broom)
+
+a <- augment(model, clean_airquality)
+```
+
+```{r}
+install.packages("ggplot2")
+library(ggplot2)
+
+ggplot(a, aes(x = Ozone, y = .fitted)) +
+  geom_point(color = "blue") +
+  geom_abline(intercept = 0, slope = 1, color = "red") +
+  labs(
+    title = "Actual vs Predictied Ozone Levels",
+    subtitle = paste("Correlation", round(cor(a$Ozone, a$.fitted), 2)),
+    x = "Actual Ozone",
+    y = "Predicted Ozone"
+  ) +
+  theme_classic()
+```
+
