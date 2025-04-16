@@ -1,0 +1,82 @@
+```{r}
+library(tidymodels)
+library(rsample)
+library(randomForest)
+library(nnet)
+```
+
+
+```{r}
+log_reg_model <- multinom_reg(mode = "classification") %>%
+  set_engine("nnet")
+```
+
+```{r}
+rand_forest_model <- rand_forest(mode = "classification") %>%
+  set_engine("randomForest")
+```
+
+```{r}
+penguin_folds <- vfold_cv(train_data, v = 10)
+```
+
+```{r}
+wf_obj <- workflow_set(
+  preproc = list(recipe(species ~ ., data = train_data)),
+  models = list(log_reg = log_reg_model, rf = rand_forest_model),
+  cross = TRUE
+)
+```
+
+```{r}
+wf_obj <- wf_obj %>%
+  workflow_map("fit_resamples", resamples = penguin_folds)
+```
+
+```{r}
+metrics_results <- wf_obj %>%
+  collect_metrics() %>%
+  filter(.metric == "accuracy")
+```
+
+```{r}
+metrics_results
+```
+
+
+```{r}
+# Ensure missing values are handled
+train_data_clean <- na.omit(train_data)
+test_data_clean <- na.omit(test_data)
+
+# Recreate the folds with the cleaned training data
+penguin_folds <- vfold_cv(train_data_clean, v = 10)
+
+# Define the models again
+log_reg_model <- multinom_reg(mode = "classification") %>%
+  set_engine("nnet")
+
+rand_forest_model <- rand_forest(mode = "classification") %>%
+  set_engine("randomForest")
+
+# Create the workflow set with the cleaned data
+wf_obj <- workflow_set(
+  preproc = list(recipe(species ~ ., data = train_data_clean)),
+  models = list(log_reg = log_reg_model, rf = rand_forest_model),
+  cross = TRUE
+)
+
+# Fit the models using cross-validation
+wf_obj <- wf_obj %>%
+  workflow_map("fit_resamples", resamples = penguin_folds)
+
+# Collect the accuracy metrics
+metrics_results <- wf_obj %>%
+  collect_metrics() %>%
+  filter(.metric == "accuracy")
+
+# View the results
+metrics_results
+
+```
+

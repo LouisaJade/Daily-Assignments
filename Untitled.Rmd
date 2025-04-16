@@ -1,0 +1,49 @@
+```{r}
+library(tidymodels)
+```
+
+```{r}
+log_reg_model <- multinom_reg(mode = "classification") %>%
+  set_engine("nnet")
+```
+
+```{r}
+rand_forest_model <- rand_forest(mode = "classification") %>%
+  set_engine("randomForest")
+```
+
+
+```{r}
+penguin_folds <- vfold_cv(train_data, v = 10)
+```
+
+
+```{r}
+wf_obj <- workflow_set(
+  preproc = list(recipe(species ~ ., data = train_data)),
+  models = list(log_reg = log_reg_model, rf = rand_forest_model),
+  cross = TRUE
+)
+```
+
+```{r}
+install.packages("randomForest")
+```
+
+
+```{r}
+wf_obj <- wf_obj %>%
+  workflow_map("fit_resamples", resamples = penguin_folds)
+```
+
+```{r}
+metrics_results <- wf_obj %>%
+  collect_metrics() %>%
+  filter(.metric == "accuracy")
+```
+
+
+```{r}
+metrics_results %>%
+  arrange(desc(mean))
+```

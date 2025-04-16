@@ -1,0 +1,103 @@
+---
+  title: "Assignment 21"
+  output-dir: docs
+  type: website
+format:
+  html:
+    self-contained: true
+---
+```{r}
+install.packages("tsibble")
+```
+
+```{r}
+install.packages("dataRetrieval")
+```
+```{r}
+install.packages("plotly")
+```
+
+```{r}
+install.packages("feasts")
+```
+
+```{r}
+install.packages("fable")
+install.packages("fabletools")
+```
+
+
+```{r}
+library(dataRetrieval)
+library(dplyr)
+
+poudre_flow <- readNWISdv(siteNumber = "06752260",
+                          parameterCd = "00060",
+                          startDate = "2013-01-01",
+                          endDate = "2023-12-31") |>
+  renameNWISColumns() |>
+  mutate(Date = yearmonth(Date)) |>
+  group_by(Date) |>
+  summarise(Flow = mean(Flow))
+```
+##tsibble
+```{r}
+library(tsibble)
+
+poudre_ts <- poudre_flow |> 
+  as_tsibble(index = Date)
+```
+
+##Timeseries
+```{r}
+library(ggplot2)
+
+ggplot(poudre_ts, aes(x = Date, y = Flow)) +
+  geom_line(color = "purple") +
+  labs(title = "Monthly Average Streamflow - Cache la Poudre River",
+       x = "Year",
+       y = "Flow (cfs)") +
+  theme_minimal()
+```
+
+```{r}
+library(plotly)
+
+p <- ggplot(poudre_ts, aes(x = Date, y = Flow)) +
+  geom_line(color = "purple") +
+  labs(title = "Monthly Average Streamflow - Interactive",
+       x = "Year",
+       y = "Flow (cfs)") +
+  theme_minimal()
+
+ggplotly(p)
+```
+
+##subseries
+```{r}
+library(feasts)
+
+poudre_ts |> 
+  gg_subseries(Flow)
+```
+
+```{r}
+#The subseries plot shows how the river flow changes each month over the years. Each small graph in the plot represents one month and shows how much water flowed in that month from 2013 to 2024. We can see that flow is usually highest in May and June, likely because of snow melting in the mountains. Flow is lowest in winter months like January and February.
+```
+
+##Decompose
+```{r}
+library(fable)
+library(fabletools)
+
+poudre_stl <- poudre_ts |>
+  model(STL(Flow ~ season(window = "periodic")))
+
+components(poudre_stl) |>
+  autoplot()
+```
+
+```{r}
+#The plot breaks the flow data into three parts: trend, season, and remainder. The trend shows how the river’s flow goes up and down slowly over the years. The seasonal part repeats every year, with high flow in spring and early summer, and low flow in winter. The remainder part shows small, random changes. The seasonal pattern stays about the same, but the trend moves slowly over time.
+```
+
