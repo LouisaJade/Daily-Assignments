@@ -1,42 +1,35 @@
 ---
-  title: "Assignment 21"
-  output-dir: docs
-  type: website
+title: "Assignment 21"
 format:
   html:
     self-contained: true
+output-dir: docs
+type: website
 ---
-```{r}
-install.packages("tsibble")
-```
 
 ```{r}
-install.packages("dataRetrieval")
-```
-```{r}
-install.packages("plotly")
-```
-
-```{r}
-install.packages("feasts")
-```
-
-```{r}
-install.packages("fable")
-install.packages("fabletools")
+install.packages("tsibble", repos = "https://cran.rstudio.com/")
+install.packages("dataRetrieval", repos = "https://cran.rstudio.com/")
+install.packages("plotly", repos = "https://cran.rstudio.com/")
+install.packages("feasts", repos = "https://cran.rstudio.com/")
+install.packages("fable", repos = "https://cran.rstudio.com/")
+install.packages("fabletools", repos = "https://cran.rstudio.com/")
+install.packages("lubridate", repos = "https://cran.rstudio.com/")
 ```
 
 
 ```{r}
 library(dataRetrieval)
 library(dplyr)
+library(lubridate)
+library(tsibble)
 
 poudre_flow <- readNWISdv(siteNumber = "06752260",
                           parameterCd = "00060",
                           startDate = "2013-01-01",
                           endDate = "2023-12-31") |>
   renameNWISColumns() |>
-  mutate(Date = yearmonth(Date)) |>
+  mutate(Date = tsibble::yearmonth(Date)) |>
   group_by(Date) |>
   summarise(Flow = mean(Flow))
 ```
