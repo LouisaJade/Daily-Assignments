@@ -1,0 +1,124 @@
+---
+title: "Assignment 22"
+format:
+  html:
+    self-contained: true
+output-dir: docs
+type: website
+---
+
+```{r}
+options(repos = c(CRAN = "https://cran.r-project.org"))
+
+install.packages("modeltime")
+install.packages("prophet")
+install.packages("forecast")
+install.packages("parsnip")
+```
+
+```{r}
+library(modeltime)
+library(prophet)
+library(forecast)
+library(parsnip)
+library(dplyr)
+library(dataRetrieval)
+library(lubridate)
+library(ggplot2)
+```
+
+```{r}
+site_number <- "06752260"
+parameter_cd <- "00060"
+
+poudre_flow <- readNWISdv(siteNumber = site_number,
+                          parameterCd = parameter_cd,
+                          startDate = "2013-01-01",
+                          endDate = "2023-12-31") %>%
+  renameNWISColumns() %>%
+  mutate(Date = as.Date(Date))
+```
+
+```{r}
+poudre_flow_monthly <- poudre_flow %>%
+  mutate(Month = floor_date(Date, "month")) %>%
+  group_by(Month) %>%
+  summarise(Flow = mean(Flow))
+```
+
+```{r}
+ggplot(poudre_flow_monthly, aes(x = Month, y = Flow)) +
+  geom_line(color = "purple") +
+  labs(title = "Monthly Average Streamflow - Cache la Poudre River",
+       x = "Month", y = "Flow (cfs)") +
+  theme_minimal()
+```
+
+```{r}
+poudre_flow_df <- as.data.frame(poudre_flow_monthly)
+colnames(poudre_flow_df) <- c("Date", "Flow")
+
+prophet_model <- prophet_reg() %>%
+  set_engine("prophet") %>%
+  fit(Flow ~ Date, data = poudre_flow_df)
+```
+
+```{r}
+arima_model <- arima_reg() %>%
+  set_engine("auto_arima") %>%
+  fit(Flow ~ Date, data = poudre_flow_df)
+```
+
+```{r}
+observed_future <- readNWISdv(siteNumber = site_number,
+                               parameterCd = parameter_cd,
+                               startDate = "2024-01-01",
+                               endDate = "2024-12-31") %>%
+  renameNWISColumns() %>%
+  mutate(Date = as.Date(Date)) %>%
+  mutate(Month = floor_date(Date, "month")) %>%
+  group_by(Month) %>%
+  summarise(Flow = mean(Flow))
+```
+
+```{r}
+future_dates <- data.frame(Date = seq.Date(from = max(poudre_flow_df$Date), by = "month", length.out = 12))
+
+prophet_predictions <- predict(prophet_model, new_data = future_dates)
+prophet_predictions <- cbind(future_dates, prophet_predictions)
+```
+
+```{r}
+arima_predictions <- predict(arima_model, new_data = future_dates)
+arima_predictions <- cbind(future_dates, arima_predictions)
+```
+
+```{r}
+colnames(prophet_predictions)[colnames(prophet_predictions) == "Date"] <- "Date"
+colnames(observed_future)[colnames(observed_future) == "Month"] <- "Date"
+
+prophet_predictions$Date <- as.Date(prophet_predictions$Date)
+observed_future$Date <- as.Date(observed_future$Date)
+
+combined_prophet <- merge(prophet_predictions, observed_future, by = "Date", all.x = TRUE)
+
+head(combined_prophet)
+```
+
+```{r}
+lm_model <- lm(Flow ~ . , data = combined_prophet)
+
+summary(lm_model)$r.squared
+```
+
+```{r}
+ggplot(combined_prophet, aes(x = Flow, y = .pred)) +
+  geom_point(color = "pink") +
+  geom_abline(slope = 1, intercept = 0, color = "darkblue", linetype = "dashed") +  # 1:1 line
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  # Linear model line
+  labs(title = "Predicted vs Observed Streamflow",
+       x = "Observed Flow (cfs)",
+       y = "Predicted Flow (cfs)") +
+  theme_minimal()
+```
+
