@@ -1,0 +1,102 @@
+---
+title: "Assignment 24"
+format:
+  html:
+    self-contained: true
+output-dir: docs
+type: website
+---
+
+```{r}
+install.packages("ggrepel")
+```
+
+
+```{r}
+library(dplyr)
+```
+
+
+```{r}
+data <- readr::read_csv("/Users/louisabeckett/github/Daily Assignments/uscities.csv")
+
+glimpse(data)
+head(data)
+summary(data)
+```
+
+```{r}
+library(sf)
+
+cities_sf <- st_as_sf(data, coords = c("lng", "lat"), crs = 4326)
+```
+
+```{r}
+print(cities_sf)
+st_geometry(cities_sf)
+
+plot(st_geometry(cities_sf))
+```
+
+```{r}
+library(sf)
+library(dplyr)
+library(ggplot2)
+library(AOI)
+
+larimer <- aoi_get(state = "CO", county = "Larimer")
+
+plot(st_geometry(larimer))
+```
+
+```{r}
+cities_in_larimer <- st_filter(cities_sf, larimer)
+
+ggplot() +
+  geom_sf(data = larimer, fill = NA, color = "darkgreen", size = 1) +
+  geom_sf(data = cities_in_larimer, aes(size = population), color = "purple") +
+  theme_minimal() +
+  ggtitle("Cities in Larimer County, CO")
+
+```
+
+```{r}
+top3 <- cities_in_larimer %>%
+  arrange(desc(population)) %>%
+  slice_head(n = 3)
+
+ggplot() +
+  geom_sf(data = larimer, fill = NA, color = "darkgreen", size = 1) +
+  geom_sf(data = cities_in_larimer, color = "purple", alpha = 0.6) +
+  geom_sf(data = top3, color = "orange", size = 3) +
+  theme_minimal() +
+  ggtitle("Top 3 Most Populous Cities in Larimer County, CO")
+```
+
+```{r}
+library(ggrepel)
+
+ggplot() +
+  geom_sf(data = larimer, fill = NA, color = "darkgreen", size = 1) +
+  geom_sf(data = cities_in_larimer, color = "purple", alpha = 0.6) +
+  geom_sf(data = top3, color = "orange", size = 3) +
+  ggrepel::geom_label_repel(
+    data = top3,
+    aes(label = city, geometry = geometry),
+    stat = "sf_coordinates",
+    size = 3,
+    color = "black",
+    fill = "white"
+  ) +
+  theme_minimal() +
+  ggtitle("Top 3 Cities in Larimer County, CO")
+
+```
+
+```{r}
+ggsave(
+  filename = "img/larimer_top3_cities.png",
+  width = 8, height = 6, dpi = 300
+)
+```
+

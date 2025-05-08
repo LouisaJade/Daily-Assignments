@@ -1,0 +1,52 @@
+---
+title: "Assignment 26"
+format:
+  html:
+    self-contained: true
+output-dir: docs
+type: website
+---
+
+```{r}
+library(terra)
+
+url <- 'https://raw.githubusercontent.com/mikejohnson51/csu-ess-330/refs/heads/main/resources/foco-elev-cm.tif'
+
+vsi_url <- paste0('/vsicurl/', url)
+elev_rast <- rast(vsi_url)
+```
+
+```{r}
+elev_rast
+```
+
+```{r}
+elev_rast_feet <- elev_rast * 0.0328084
+
+elev_df <- values(elev_rast_feet, dataframe = TRUE)
+
+elev_df
+```
+
+```{r}
+library(ggplot2)
+
+colnames(elev_df) <- "elevation_feet"
+
+density_plot <- ggplot(elev_df, aes(x = elevation_feet)) +
+  geom_density(fill = "lightblue", color = "darkblue") +
+  geom_vline(aes(xintercept = mean(elevation_feet, na.rm = TRUE)), 
+             color = "red", linetype = "dashed") +
+  labs(title = "Density Plot of Elevation in Fort Collins Area",
+       x = "Elevation (feet)",
+       y = "Density") +
+  theme_minimal()
+
+print(density_plot)
+```
+
+```{r}
+ggsave("elevation_density_plot.png", plot = density_plot, width = 8, height = 6, dpi = 300)
+```
+
+

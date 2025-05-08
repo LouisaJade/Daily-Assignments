@@ -1,0 +1,19 @@
+---
+title: "Assignment 23"
+format:
+  html:
+    self-contained: true
+output-dir: docs
+type: website
+---
+
+```{r}
+install.packages("sf") 
+install.packages("terra")
+install.packages("mapview")
+
+install.packages("remotes")
+
+remotes::install_github("mikejohnson51/AOI")
+```
+

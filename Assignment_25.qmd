@@ -1,0 +1,93 @@
+---
+title: "Assignment 25"
+format:
+  html:
+    self-contained: true
+output-dir: docs
+type: website
+---
+
+```{r}
+library(sf)
+library(dplyr)
+library(ggplot2)
+library(AOI)
+library(units)
+```
+
+```{r}
+major_rivers <- read_sf("/Users/louisabeckett/github/Daily Assignments/majorrivers_0_0")
+```
+
+```{r}
+major_rivers <- read_sf("majorrivers_0_0/MajorRivers.shp")
+```
+
+
+```{r}
+library(stringr)
+library(dplyr)
+mississippi <- major_rivers %>% filter(str_detect(NAME, "Mississippi"))
+```
+
+```{r}
+library(sf)
+library(USAboundaries)
+
+intersect_counties2 <- us_counties(resolution = "high")
+
+names(intersect_counties2) <- make.names(names(intersect_counties2), unique = TRUE)
+
+intersect_counties2 <- intersect_counties2 %>%
+  filter(!state_abbr %in% c("AK", "HI", "PR"))
+```
+
+```{r}
+library(ggplot2)
+
+mississippi_counties <- st_filter(intersect_counties2, mississippi2, .predicate = st_intersects)
+
+
+ggplot() +
+  geom_sf(data = intersect_counties2, fill = "lightblue", color = "black") +
+  geom_sf(data = mississippi2, color = "blue", size = 9) +
+  labs(title = "Counties Intersecting the Mississippi River System")
+```
+
+```{r}
+library(readr)
+uscities <- read_csv("uscities.csv", 
+                     show_col_types = FALSE) %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326)
+```
+
+```{r}
+library(sf)
+library(dplyr)
+cities_in_counties <- st_join(uscities, mississippi_counties, join = st_within)
+```
+
+```{r}
+urban_county_pop <- cities_in_counties %>%
+  st_drop_geometry() %>% group_by(county_fips) %>%
+  summarise(urban_pop = sum(population, na.rm = TRUE))
+```
+
+```{r}
+mississippi_counties <- left_join(mississippi_counties, urban_county_pop, by = c("geoid" = "county_fips"))
+```
+
+```{r}
+ggplot() +
+  geom_sf(data = mississippi_counties, aes(fill = urban_pop), color = "black") +
+  geom_sf(data = mississippi, color = "purple", size = 0.8) +
+  scale_fill_viridis_c(option = "plasma", na.value = "grey80") +
+  labs(title = "Urban Population in Counties Along the Mississippi River",
+       fill = "Urban Pop.") +
+  theme_minimal()
+```
+
+```{r}
+ggsave("img/mississippi_urban_population.png", width = 10, height = 7, dpi = 300)
+```
+

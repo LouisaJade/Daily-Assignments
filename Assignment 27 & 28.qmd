@@ -1,0 +1,137 @@
+---
+title: "Assignment 27 & 28"
+format:
+  html:
+    self-contained: true
+output-dir: docs
+type: website
+---
+```{r}
+install.packages("osmdata", repos = "https://cran.rstudio.com/")
+```
+
+
+```{r}
+library(osmdata)
+library(sf)
+library(terra)
+library(dplyr)
+```
+
+```{r}
+bbox <- getbb("Fort Collins, Colorado")
+
+waterways <- opq(bbox = bbox) %>%
+  add_osm_feature(key = "waterway") %>%
+  osmdata_sf()
+```
+
+```{r}
+poudre_river <- waterways$osm_lines %>%
+  filter(name == "Cache la Poudre River") %>%
+  st_union() %>%
+  st_as_sf()
+```
+
+```{r}
+river_length <- st_length(poudre_river)
+print(river_length)
+```
+
+```{r}
+url <- 'https://raw.githubusercontent.com/mikejohnson51/csu-ess-330/refs/heads/main/resources/foco-elev-cm.tif'
+vsi_url <- paste0('/vsicurl/', url)
+dem <- rast(vsi_url)
+```
+
+```{r}
+poudre_pts <- st_cast(poudre_river, "POINT")
+
+poudre_pts_proj <- st_transform(poudre_pts, crs = st_crs(dem))
+
+dem_extent <- ext(dem)
+dem_extent_vect <- vect(dem_extent, crs = crs(dem))
+dem_extent_sf <- st_as_sf(dem_extent_vect)
+
+poudre_pts_clipped <- st_intersection(poudre_pts_proj, dem_extent_sf)
+
+plot(dem)
+plot(poudre_pts_clipped, add = TRUE, col = "red", pch = 16)
+```
+
+```{r}
+river_profile <- extract(dem, poudre_pts_clipped)
+
+print(head(river_profile))
+```
+
+
+```{r}
+start_point <- poudre_pts[1, ]
+end_point <- poudre_pts[nrow(poudre_pts), ]
+
+straight_dist <- st_distance(start_point, end_point)
+straight_dist <- as.numeric(straight_dist)
+
+actual_length <- as.numeric(river_length)
+
+sinuosity <- actual_length / straight_dist
+print(sinuosity)
+```
+
+```{r}
+#Having a sinuosity of 2.15 is typical for a natural and winding river. This makes sense as the sinuosity for the Poudre River as it is a natrual river that has been altered by humans, but not enough or to the same extent that a man made canal might have.
+```
+
+
+```{r}
+elev_inlet_cm <- river_profile$layer[1]
+elev_outlet_cm <- river_profile$layer[nrow(river_profile)]
+
+delta_elev_m <- (elev_inlet_cm - elev_outlet_cm) / 100
+river_length_m <- as.numeric(river_length)
+river_slope <- delta_elev_m / river_length_m
+print(river_slope)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(river_profile, aes(x = ID, y = dem)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red") +
+  labs(
+    title = "Elevation Profile of Cache la Poudre River",
+    x = "Point ID",
+    y = "Elevation (cm)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_text(size = 12)
+  )
+```
+
+```{r}
+library(ggplot2)
+
+river_profile <- extract(dem, poudre_pts_clipped)
+
+river_profile_sf <- cbind(poudre_pts_clipped, river_profile)
+river_profile_sf <- st_as_sf(river_profile_sf)
+
+ggplot(river_profile_sf) +
+  geom_sf(aes(color = dem), size = 2) +  # 'dem' is the elevation column
+  scale_color_viridis_c() +
+  labs(
+    title = "Spatial Map of Cache la Poudre River Profile",
+    color = "Elevation (cm)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_text(size = 12)
+  )
+
+```
+
